@@ -5,6 +5,7 @@
 
 // drivers
 #include "DebounceIn.h"
+#include "ColorSensor.h"
 
 bool do_execute_main_task = false; // this variable will be toggled via the user button (blue button) and
                                    // decides whether to execute the main task or not
@@ -39,6 +40,15 @@ int main()
 
     // --- adding variables and objects and applying functions starts here ---
 
+    // color sensor
+    float color_raw_Hz[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // define an array to store the measurement of the color sensor (in Hz)
+    float color_avg_Hz[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // define an array to store the average measurement of the color sensor (in Hz)
+    float color_cal[4] = {0.0f, 0.0f, 0.0f, 0.0f}; // define an array to store the calibrated measurement of the color sensor
+    
+    int color_num = 0.0f; // define a variable to store the color number, e.g. 0 for red, 1 for green, 2 for blue, 3 for clear
+    const char* color_string; // define a variable to store the color string, e.g. "red", "green", "blue", "clear"
+    ColorSensor Color_Sensor(PB_3, PH_0, PA_4,PB_0, PC_1, PC_0); // create ColorSensor object, connect the frequency output pin of the sensor to SOMETHING THAT SUPPORTS pwmIn
+
     // start timer
     main_task_timer.start();
 
@@ -54,6 +64,33 @@ int main()
 
             // visual feedback that the main task is executed, setting this once would actually be enough
             led1 = 1;
+
+            // read the raw color measurement (in Hz) and store it in the defined variable
+            for (int i = 0; i < 4; i++) {
+                color_raw_Hz[i] = Color_Sensor.readRawColor()[i]; // read the raw color measurement in Hz
+            }
+            
+            // read the average color measurement (in Hz) and store it in the defined variable
+            for (int i = 0; i < 4; i++) {
+                color_avg_Hz[i] = Color_Sensor.readColor()[i]; // read the average color measurement in Hz
+            }
+
+            // read the calibrated color measurement (unitless) and store it in the defined variable
+            for (int i = 0; i < 4; i++) {
+                color_cal[i] = Color_Sensor.readColorCalib()[i];
+            }
+
+            // read the classified color number and store it in the defined variable
+            color_num = Color_Sensor.getColor();
+
+            // read the classified color string and store it in the defined variable
+            color_string = Color_Sensor.getColorString(color_num);
+
+            // printf("Color Raw Hz: %f %f %f %f\n", color_raw_Hz[0], color_raw_Hz[1], color_raw_Hz[2], color_raw_Hz[3]); // uncomment to print raw color measurement in Hz
+            printf("Color Avg Hz: %f %f %f %f\n", color_avg_Hz[0], color_avg_Hz[1], color_avg_Hz[2], color_avg_Hz[3]); // uncomment to print average color measurement in Hz (used for calibration and color classification)
+            // printf("Color Num: %d Color %s\n", color_num, color_string); // uncomment to print classified color number and string. careful: filters delay also delays the color classification,
+                                                                         // so the first few readings after switching the color sensor might be wrong until the filters are settled
+
         } else {
             // the following code block gets executed only once
             if (do_reset_all_once) {
@@ -63,6 +100,14 @@ int main()
 
                 // reset variables and objects
                 led1 = 0;
+
+                for (int i = 0; i < 4; i++) {
+                    color_raw_Hz[i] = 0.0f;
+                    color_avg_Hz[i] = 0.0f;
+                    color_cal[i] = 0.0f;
+                }
+                color_num = 0;
+                color_string = nullptr;
             }
         }
 
@@ -70,6 +115,10 @@ int main()
         user_led = !user_led;
 
         // --- code that runs every cycle at the end goes here ---
+
+        // print to the serial terminal
+        
+        
 
         // read timer and make the main thread sleep for the remaining time span (non blocking)
         int main_task_elapsed_time_ms = duration_cast<milliseconds>(main_task_timer.elapsed_time()).count();
